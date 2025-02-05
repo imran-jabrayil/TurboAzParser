@@ -128,8 +128,6 @@ public class TurboAzClient(
             case "brand":
                 labelText = "Marka";
                 break;
-            // TODO: Fix viewsCount and lastUpdated
-
             case "city":
                 labelText = "Şəhər";
                 break;
