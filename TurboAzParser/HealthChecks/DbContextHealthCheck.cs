@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using TurboAzParser.Models;
 
 namespace TurboAzParser.HealthChecks;
 
@@ -23,15 +24,18 @@ public sealed class DbContextHealthCheck<TContext>(
 
             if (!canConnect)
             {
-                throw new InvalidOperationException("Checking health check failed");
+                throw new InvalidOperationException("Could not connect to database");
             }
             
             _logger.LogInformation("Connection established");
-            return HealthCheckResult.Healthy("Successfully connected to the database.");
+            
+            bool _ = await _dbContext.Set<UrlHistory>().AnyAsync(cancellationToken);
+            
+            return HealthCheckResult.Healthy("Database is healthy");
         }
         catch (Exception ex)
         {
-            return HealthCheckResult.Unhealthy("Database connection check failed.", ex);
+            return HealthCheckResult.Unhealthy("Database check failed.", ex);
         }
     }
 }
