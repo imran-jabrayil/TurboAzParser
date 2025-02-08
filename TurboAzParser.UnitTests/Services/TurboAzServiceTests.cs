@@ -1,10 +1,8 @@
-﻿using AutoFixture;
-using AutoFixture.AutoMoq;
-using AutoFixture.Xunit2;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Moq;
 using TurboAzParser.Clients.Abstractions;
 using TurboAzParser.Services;
+using TurboAzParser.UnitTests.Attributes;
 
 namespace TurboAzParser.UnitTests.Services;
 
@@ -28,10 +26,3 @@ public class TurboAzServiceTests
     }
 }
 
-public class AutoMoqDataAttribute : AutoDataAttribute
-{
-    public AutoMoqDataAttribute() : base(() =>
-        new Fixture().Customize(new AutoMoqCustomization()))
-    {
-    }
-}
