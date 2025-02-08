@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-using System.Text.RegularExpressions;
+﻿using AutoMapper;
 using HtmlAgilityPack;
 using Microsoft.Extensions.Options;
 using TurboAzParser.Clients.Abstractions;
@@ -10,10 +9,12 @@ namespace TurboAzParser.Clients;
 
 public class TurboAzClient(
     HttpClient httpClient,
-    IOptions<TurboAzClientSettings> options) : ITurboAzClient
+    IOptions<TurboAzClientSettings> options,
+    IMapper mapper) : ITurboAzClient
 {
     private readonly HttpClient _httpClient = httpClient;
     private readonly TurboAzClientSettings _settings = options.Value ?? throw new ArgumentNullException(nameof(options));
+    private readonly IMapper _mapper = mapper;
 
 
     public async Task<IEnumerable<string>> GetPageCarUrlsAsync(uint pageNumber, uint carBrandId)
@@ -44,159 +45,87 @@ public class TurboAzClient(
     public async Task<CarInfo> GetCarInfoAsync(string path)
     {
         _httpClient.BaseAddress = new Uri(_settings.BaseUrl);
-        
         string response = await _httpClient.GetStringAsync(path);
         
         HtmlDocument doc = new();
         doc.LoadHtml(response);
         
-        HtmlNodeCollection? properties = doc.DocumentNode
-            .SelectNodes("//div[contains(@class, 'product-properties__i')]");
-        HtmlNodeCollection? statistics = doc.DocumentNode
-            .SelectNodes("//span[contains(@class, 'product-statistics__i-text')]");
+        HtmlNodeCollection? properties = doc.DocumentNode.SelectNodes("//div[contains(@class, 'product-properties__i')]");
+        HtmlNodeCollection? statistics = doc.DocumentNode.SelectNodes("//span[contains(@class, 'product-statistics__i-text')]");
 
-        HtmlNode? priceNode = doc.DocumentNode
-                                  .SelectSingleNode(
-                                      "//div[contains(@class, 'product-price__i') and contains(@class, 'tz-mt-10')]")
-                              ?? doc.DocumentNode
-                                  .SelectSingleNode(
-                                      "//div[contains(@class, 'product-price__i') and contains(@class, 'product-price__i--bold')]");
+        HtmlNode? priceNode = doc.DocumentNode.SelectSingleNode("//div[contains(@class, 'product-price__i') and contains(@class, 'tz-mt-10')]")
+                          ?? doc.DocumentNode.SelectSingleNode("//div[contains(@class, 'product-price__i') and contains(@class, 'product-price__i--bold')]");
 
+        string brand = this.getStringProperty(properties, "brand") ?? throw new NullReferenceException(nameof(brand));
+        string model = this.getStringProperty(properties, "model") ?? throw new NullReferenceException(nameof(model));
+        string priceRaw = priceNode?.InnerText ?? throw new ArgumentNullException(nameof(priceNode));
 
-        string? brand = this.getStringProperty(properties, "brand");
-        string? lastUpdated = this.getStatsProperty(statistics, "lastUpdated");
-        string? viewsCount = this.getStatsProperty(statistics, "viewsCount");
-        string? city = this.getStringProperty(properties, "city");
-        string? model = this.getStringProperty(properties, "model");
-        string? releaseDate = this.getStringProperty(properties, "releaseDate");
-        string? roofType = this.getStringProperty(properties, "roofType");
-        string? color = this.getStringProperty(properties, "color");
-        string? engine = this.getStringProperty(properties, "engine");
-        string? mileage = this.getStringProperty(properties, "mileage");
-        string? gearbox = this.getStringProperty(properties, "gearbox");
-        string? gear = this.getStringProperty(properties, "gear");
-        string? isNew = this.getStringProperty(properties, "isNew");
-        string? seatsCount = this.getStringProperty(properties, "seatsCount");
-        string? ownersCount = this.getStringProperty(properties, "ownersCount");
-        string? state = this.getStringProperty(properties, "state");
-        string? market = this.getStringProperty(properties, "market");
-
-        string price = Regex.Replace(priceNode?.InnerText ?? string.Empty, @"\D", "") ??
-                       throw new ArgumentNullException(nameof(priceNode));
-        
-        var carInfo = new CarInfo
+        var carInfoDto = new CarInfoDto
         {
-            Brand = brand ?? throw new NullReferenceException("brand"),
-            ViewsCount = viewsCount is not null 
-                ? int.Parse(viewsCount) 
-                : -1,
-            LastUpdated = lastUpdated is not null
-                ? DateTime.ParseExact(lastUpdated, "dd.MM.yyyy", CultureInfo.InvariantCulture)
-                : DateTime.MinValue,
-            City = city ?? string.Empty,
-            Model = model ?? throw new NullReferenceException("model"),
-            ReleaseDate = releaseDate is not null
-                ? int.Parse(releaseDate)
-                : int.MinValue,
-            RoofType = roofType ?? string.Empty,
-            Color = color ?? string.Empty,
-            Engine = engine ?? string.Empty,
-            Mileage = mileage ?? string.Empty,
-            Gearbox = gearbox ?? string.Empty,
-            Gear = gear ?? string.Empty,
-            IsNew = isNew == "Bəli",
-            SeatsCount = seatsCount is not null 
-                ? int.Parse(seatsCount) 
-                : -1,
-            OwnersCount = ownersCount is not null 
-                ? int.Parse(ownersCount) 
-                : -1,
-            State = state ?? string.Empty,
-            Market = market ?? string.Empty,
-            Price = int.Parse(price)
+            Brand = brand,
+            Model = model,
+            Price = priceRaw,
+            LastUpdated = this.getStatsProperty(statistics, "lastUpdated") ?? DateTime.MinValue.ToString("dd.MM.yyyy"),
+            ViewsCount = this.getStatsProperty(statistics, "viewsCount") ?? "-1",
+            City = this.getStringProperty(properties, "city"),
+            ReleaseDate = this.getStringProperty(properties, "releaseDate"),
+            RoofType = this.getStringProperty(properties, "roofType"),
+            Color = this.getStringProperty(properties, "color"),
+            Engine = this.getStringProperty(properties, "engine"),
+            Mileage = this.getStringProperty(properties, "mileage"),
+            Gearbox = this.getStringProperty(properties, "gearbox"),
+            Gear = this.getStringProperty(properties, "gear"),
+            IsNew = this.getStringProperty(properties, "isNew"),
+            SeatsCount = this.getStringProperty(properties, "seatsCount"),
+            OwnersCount = this.getStringProperty(properties, "ownersCount"),
+            State = this.getStringProperty(properties, "state"),
+            Market = this.getStringProperty(properties, "market")
         };
-        
-        return carInfo;
+
+        return _mapper.Map<CarInfo>(carInfoDto);
     }
 
-    private string? getStringProperty(HtmlNodeCollection properties, string field)
+    private string? getStringProperty(HtmlNodeCollection? properties, string field)
     {
-        string labelText;
-        
-        switch (field)
+        string labelText = field switch
         {
-            case "brand":
-                labelText = "Marka";
-                break;
-            case "city":
-                labelText = "Şəhər";
-                break;
-            case "model":
-                labelText = "Model";
-                break;
-            case "releaseDate":
-                labelText = "Buraxılış ili";
-                break;
-            case "roofType":
-                labelText = "Ban növü";
-                break;
-            case "color":
-                labelText = "Rəng";
-                break;
-            case "engine":
-                labelText = "Mühərrik";
-                break;
-            case "mileage":
-                labelText = "Yürüş";
-                break;
-            case "gearbox":
-                labelText = "Sürətlər qutusu";
-                break;
-            case "gear":
-                labelText = "Ötürücü";
-                break;
-            case "isNew":
-                labelText = "Yeni";
-                break;
-            case "seatsCount":
-                labelText = "Yerlərin sayı";
-                break;
-            case "ownersCount":
-                labelText = "Sahiblər";
-                break;
-            case "state":
-                labelText = "Vəziyyəti";
-                break;
-            case "market":
-                labelText = "Hansı bazar üçün yığılıb";
-                break;
-            
-            default: return null;
-        }
+            "brand" => "Marka",
+            "model" => "Model",
+            "city" => "Şəhər",
+            "releaseDate" => "Buraxılış ili",
+            "roofType" => "Ban növü",
+            "color" => "Rəng",
+            "engine" => "Mühərrik",
+            "mileage" => "Yürüş",
+            "gearbox" => "Sürətlər qutusu",
+            "gear" => "Ötürücü",
+            "isNew" => "Yeni",
+            "seatsCount" => "Yerlərin sayı",
+            "ownersCount" => "Sahiblər",
+            "state" => "Vəziyyəti",
+            "market" => "Hansı bazar üçün yığılıb",
+            _ => string.Empty
+        };
 
-        return properties
-            .FirstOrDefault(prop => prop.ChildNodes.Any(child => child.Name == "label" && child.InnerText == labelText))
-            ?.ChildNodes.FirstOrDefault(child => child.Name == "span")?.InnerText;
+        return properties?
+            .FirstOrDefault(prop => prop.ChildNodes.Any(child => 
+                child.Name == "label" && child.InnerText.Trim() == labelText))?
+            .ChildNodes.FirstOrDefault(child => child.Name == "span")?
+            .InnerText.Trim();
     }
 
-    private string? getStatsProperty(HtmlNodeCollection statistics, string field)
+    private string? getStatsProperty(HtmlNodeCollection? statistics, string field)
     {
-        string startsWith;
-
-        switch (field)
+        string startsWith = field switch
         {
-            case "viewsCount":
-                startsWith = "Baxışların sayı: ";
-                break;
-            case "lastUpdated":
-                startsWith = "Yeniləndi: ";
-                break;
-            
-            default: throw new InvalidOperationException();
-        }
+            "lastUpdated" => "Yeniləndi: ",
+            "viewsCount" => "Baxışların sayı: ",
+            _ => string.Empty
+        };
 
-        return statistics.FirstOrDefault(st => st.InnerText.StartsWith(startsWith))
-            ?.InnerText
+        return statistics?
+            .FirstOrDefault(st => st.InnerText.Trim().StartsWith(startsWith))?
+            .InnerText.Trim()
             .Substring(startsWith.Length);
     }
 }
