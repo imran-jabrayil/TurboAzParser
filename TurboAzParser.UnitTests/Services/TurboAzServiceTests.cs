@@ -3,7 +3,7 @@ using AutoFixture.AutoMoq;
 using AutoFixture.Xunit2;
 using Microsoft.Extensions.Logging;
 using Moq;
-using TurboAzParser.Client.Abstractions;
+using TurboAzParser.Clients.Abstractions;
 using TurboAzParser.Services;
 
 namespace TurboAzParser.UnitTests.Services;

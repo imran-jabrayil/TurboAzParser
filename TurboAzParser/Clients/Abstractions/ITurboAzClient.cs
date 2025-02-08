@@ -1,6 +1,6 @@
 ﻿using TurboAzParser.Models;
 
-namespace TurboAzParser.Client.Abstractions;
+namespace TurboAzParser.Clients.Abstractions;
 
 public interface ITurboAzClient
 {

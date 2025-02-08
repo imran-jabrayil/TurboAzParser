@@ -1,4 +1,4 @@
-﻿using TurboAzParser.Client.Abstractions;
+﻿using TurboAzParser.Clients.Abstractions;
 using TurboAzParser.Models;
 using TurboAzParser.Services.Abstractions;
 

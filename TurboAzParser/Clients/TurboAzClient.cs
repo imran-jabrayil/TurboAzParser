@@ -2,11 +2,11 @@
 using System.Text.RegularExpressions;
 using HtmlAgilityPack;
 using Microsoft.Extensions.Options;
-using TurboAzParser.Client.Abstractions;
-using TurboAzParser.Client.Settings;
+using TurboAzParser.Clients.Abstractions;
+using TurboAzParser.Clients.Settings;
 using TurboAzParser.Models;
 
-namespace TurboAzParser.Client;
+namespace TurboAzParser.Clients;
 
 public class TurboAzClient(
     HttpClient httpClient,

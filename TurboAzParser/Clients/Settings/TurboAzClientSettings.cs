@@ -1,4 +1,4 @@
-﻿namespace TurboAzParser.Client.Settings;
+﻿namespace TurboAzParser.Clients.Settings;
 
 public record TurboAzClientSettings
 {

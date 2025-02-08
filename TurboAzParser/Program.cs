@@ -1,6 +1,6 @@
-using TurboAzParser.Client;
-using TurboAzParser.Client.Abstractions;
-using TurboAzParser.Client.Settings;
+using TurboAzParser.Clients;
+using TurboAzParser.Clients.Abstractions;
+using TurboAzParser.Clients.Settings;
 using TurboAzParser.Services;
 using TurboAzParser.Services.Abstractions;
 
